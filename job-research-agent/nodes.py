@@ -1,11 +1,57 @@
+import json
+
 from pocketflow import Node
+from pypdf import PdfReader
+
+from utils.call_llm import call_llm
 
 class ParseJobNode(Node):
-    def exec(self, _):
-        # receive job text from shared store
-        # returns structured summary of role/requirements
-        pass
-    
+    def prep(self, shared):
+        return shared['job_posting']
+
+    def parse_job_posting(self, job_posting):
+        try:
+            job_posting_text = ""
+            with open(job_posting, "rb") as file:
+                reader = PdfReader(file)
+
+                for page in reader.pages:
+                    job_posting_text += page.extract_text()
+
+            return job_posting_text
+        except Exception as e:
+            print(f"Error: Unable to parse the job_posting provided: {e}")
+            raise
+
+    def exec(self, inputs):
+        job_parsing_prompt = f"""
+        You are a helpful assistant that parses job postings.
+        You will be given a job posting and you will need to parse it into a structured format.
+
+        The job posting is: {self.parse_job_posting(inputs)}
+
+        The output should be a JSON object with the following keys:
+        - company_name: the name of the company
+        - job_title: the title of the job
+        - job_description: a brief description of the job
+        - job_requirements: the requirements for the job
+        - job_responsibilities: the responsibilities for the job
+
+        Do not make up any information, only use the information provided in the job posting.
+        Return only a valid JSON object.
+        """
+        try:
+            job_summary = json.loads(call_llm(job_parsing_prompt))
+            
+            return job_summary
+        except json.JSONDecodeError:
+            print("Error: decoding the json file due to an improper format")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+
+
     def post(self, shared, prep_res, exec_res):
         shared['job_summary'] = exec_res
         return "default"
@@ -13,12 +59,46 @@ class ParseJobNode(Node):
 
 class ResearchNode(Node):
     def prep(self, shared):
-        return shared['job_summary'], shared['research']
+        return shared['job_summary'], shared['resume_file']
+
+    def parse_resume(self, resume_file):
+        try:
+            resume_text = ""
+            with open(resume_file, "rb") as file:
+                reader = PdfReader(file)
+
+                for page in reader.pages:
+                    resume_text += page.extract_text()
+            
+            return resume_text
+        except Exception as e:
+            print(f"Error: Unable to parse the resume provided: {e}")
+            raise
+
 
     def exec(self, inputs):
-        # call LLM to research company + role fit
-        # returns research notes
-        pass
+        job_summary, resume_file = inputs
+
+        research_prompt = f"""
+        You are a helpful assistant that researches companies and roles.
+        You will be given a company name and a job title and you will need to research the company and the role.
+        The company name is {job_summary['company_name']} and the job title is {job_summary['job_title']}.
+        The research should be based on the job posting and the company information.
+
+        Provided resume: {self.parse_resume(resume_file)}
+        Given the job posting and the resume, determine if the candidate is a good fit for the role.
+        Return only a valid JSON object.
+        """
+        try:
+            research_summary = json.loads(call_llm(research_prompt))
+            return research_summary
+        except json.JSONDecodeError:
+            print(f"Error decoding the json file due to an improper format")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+
     
     def post(self, shared, prep_res, exec_res):
         shared['research'] = exec_res
@@ -30,13 +110,33 @@ class SynthesisNode(Node):
         return shared['job_summary'], shared['research']
 
     def exec(self, inputs):
-        # call LLM to generate:
-        # 1. fit summary
-        # 2. talking points
-        # 3. question to ask
-        # returns synthesis notes
-        pass
-    
+        job_summary, research = inputs
+        synthesis_prompt = f"""
+        You are a helpful assistant that synthesizes research.
+        You will be given a job summary and a research summary and you will need to synthesize the research into a fit summary and a talking points.
+        The job summary is {job_summary} and the research summary is {research}.
+        The synthesis should be based on the job summary and the research summary.
+        The synthesis should be in a structured format.
+
+        The output should be a JSON object with the following keys:
+        - fit_summary: a summary of the fit of the candidate for the role
+        - key_strengths: a list of the candidate's key strengths
+        - areas_for_improvement: a list of the candidate's areas for improvement
+        - talking_points: a list of talking points to use in the interview
+        - questions_to_ask: a list of questions to ask the candidate
+
+        Return only a valid JSON object.
+        """
+        try:
+            synthesis_summary = json.loads(call_llm(synthesis_prompt))
+            return synthesis_summary
+        except json.JSONDecodeError:
+            print(f"Error decoding the json file due to an improper format")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+
     def post(self, shared, prep_res, exec_res):
         shared['brief'] = exec_res
         return "default"

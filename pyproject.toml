@@ -7,12 +7,14 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "pocketflow (>=0.0.3,<0.0.4)"
-]
+
+[tool.poetry.dependencies]
+pocketflow= ">=0.0.3,<0.0.4"
+pypdf = "^6.9.1"
+google-genai = "^1.68.0"
 
 [tool.poetry]
-packages = [{include = "job_research_agent", from = "src"}]
+packages = [{include = "job-research-agent"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
