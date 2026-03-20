@@ -10,18 +10,25 @@ class ParseJobNode(Node):
         return shared['job_posting']
 
     def parse_job_posting(self, job_posting):
-        try:
-            job_posting_text = ""
-            with open(job_posting, "rb") as file:
-                reader = PdfReader(file)
+        if job_posting.endswith(".pdf"):
+            try:
+                job_posting_text_parts: list[str] = []
+                with open(job_posting, "rb") as file:
+                    reader = PdfReader(file)
 
-                for page in reader.pages:
-                    job_posting_text += page.extract_text()
+                    for page in reader.pages:
+                        page_text = page.extract_text() or ""
+                        job_posting_text_parts.append(page_text)
 
-            return job_posting_text
-        except Exception as e:
-            print(f"Error: Unable to parse the job_posting provided: {e}")
-            raise
+                return "".join(job_posting_text_parts)
+            except Exception as e:
+                print(f"Error: Unable to parse the job_posting provided: {e}")
+                raise
+        else:
+            with open(job_posting, 'r') as file:
+                job_posting = file.read()
+
+            return job_posting
 
     def exec(self, inputs):
         job_parsing_prompt = f"""
@@ -41,6 +48,32 @@ class ParseJobNode(Node):
         Return only a valid JSON object.
         """
         try:
+            job_posting_text = self.parse_job_posting(inputs)
+            if not job_posting_text or not job_posting_text.strip():
+                raise ValueError(
+                    "No extractable text found in `job_posting.pdf` (pypdf returned empty text for all pages). "
+                    "This PDF is likely scanned/image-only. Please provide a text-based PDF or add an OCR step "
+                    "(e.g., Tesseract) before parsing."
+                )
+
+            # Embed the extracted text into the prompt after validation.
+            job_parsing_prompt = f"""
+        You are a helpful assistant that parses job postings.
+        You will be given a job posting and you will need to parse it into a structured format.
+
+        The job posting is: {job_posting_text}
+
+        The output should be a JSON object with the following keys:
+        - company_name: the name of the company
+        - job_title: the title of the job
+        - job_description: a brief description of the job
+        - job_requirements: the requirements for the job
+        - job_responsibilities: the responsibilities for the job
+
+        Do not make up any information, only use the information provided in the job posting.
+        Return only a valid JSON object.
+        """
+
             job_summary = json.loads(call_llm(job_parsing_prompt))
             
             return job_summary
@@ -63,14 +96,14 @@ class ResearchNode(Node):
 
     def parse_resume(self, resume_file):
         try:
-            resume_text = ""
+            resume_text_parts: list[str] = []
             with open(resume_file, "rb") as file:
                 reader = PdfReader(file)
 
                 for page in reader.pages:
-                    resume_text += page.extract_text()
+                    resume_text_parts.append(page.extract_text() or "")
             
-            return resume_text
+            return "".join(resume_text_parts)
         except Exception as e:
             print(f"Error: Unable to parse the resume provided: {e}")
             raise
