@@ -43,10 +43,6 @@ where.exe gswin64c
 gswin64c --version
 ```
 
-Optional (improves output size/optimization; not required):
-- **jbig2**: enables JBIG2 compression optimization
-- **pngquant**: enables PNG optimization
-
 ## How to run
 ### CLI
 ```bash
