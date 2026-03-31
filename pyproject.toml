@@ -13,6 +13,10 @@ pocketflow= ">=0.0.3,<0.0.4"
 pypdf = "^6.9.1"
 google-genai = "^1.68.0"
 dotenv = "^0.9.9"
+fastapi = "*"
+uvicorn = { version = "*", extras = ["standard"] }
+python-multipart = "*"
+ocrmypdf = "<=17.4.0"
 
 [tool.poetry]
 packages = [{include = "job-research-agent"}]

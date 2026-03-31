@@ -1,4 +1,8 @@
 import json
+import os
+import tempfile
+
+from ocrmypdf import ocr
 
 from pocketflow import Node
 from pypdf import PdfReader
@@ -9,20 +13,61 @@ class ParseJobNode(Node):
     def prep(self, shared):
         return shared['job_posting']
 
-    def parse_job_posting(self, job_posting):
-        if job_posting.endswith(".pdf"):
+    def _extract_pdf_text(self, pdf_path: str) -> str:
+        text_parts: list[str] = []
+        with open(pdf_path, "rb") as file:
+            reader = PdfReader(file)
+            for page in reader.pages:
+                text_parts.append(page.extract_text() or "")
+        return "".join(text_parts)
+
+    def _ocr_pdf_to_searchable_pdf(self, input_pdf_path: str) -> str:
+        """
+        Run OCR on a PDF and return the path to the OCR'd PDF.
+
+        Uses OCRmyPDF (which typically requires external dependencies like Tesseract and Ghostscript).
+        """
+        fd, output_pdf_path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            # Force OCR so even "empty text layer" PDFs get processed.
+            ocr(
+                input_pdf_path,
+                output_pdf_path,
+                language=["eng"],
+                force_ocr=True,
+                progress_bar=False,
+            )
+        except Exception:
+            # If OCR fails, cleanup the output file and re-raise.
             try:
-                job_posting_text_parts: list[str] = []
-                with open(job_posting, "rb") as file:
-                    reader = PdfReader(file)
+                if os.path.exists(output_pdf_path):
+                    os.remove(output_pdf_path)
+            except OSError:
+                pass
+            raise
+        return output_pdf_path
 
-                    for page in reader.pages:
-                        page_text = page.extract_text() or ""
-                        job_posting_text_parts.append(page_text)
+    def parse_job_posting(self, job_posting):
+        if job_posting.lower().endswith(".pdf"):
+            try:
+                extracted = self._extract_pdf_text(job_posting)
+                if extracted and extracted.strip():
+                    return extracted
 
-                return "".join(job_posting_text_parts)
+                print("Warning: No extractable text found; attempting OCR.")
+                ocr_pdf_path = self._ocr_pdf_to_searchable_pdf(job_posting)
+                try:
+                    extracted_after_ocr = self._extract_pdf_text(ocr_pdf_path)
+                    return extracted_after_ocr
+                finally:
+                    try:
+                        if os.path.exists(ocr_pdf_path):
+                            os.remove(ocr_pdf_path)
+                    except OSError:
+                        pass
             except Exception as e:
-                print(f"Error: Unable to parse the job_posting provided: {e}")
+                print(f"Error: Unable to parse the job_posting provided. PDF is likely scanned/image-only: {e}")
                 raise
         else:
             with open(job_posting, 'r') as file:
@@ -99,11 +144,37 @@ class ResearchNode(Node):
             resume_text_parts: list[str] = []
             with open(resume_file, "rb") as file:
                 reader = PdfReader(file)
-
                 for page in reader.pages:
                     resume_text_parts.append(page.extract_text() or "")
-            
-            return "".join(resume_text_parts)
+
+            extracted = "".join(resume_text_parts)
+            if extracted and extracted.strip():
+                return extracted
+
+            # Optional OCR for scanned resumes (same behavior as job postings).
+            if resume_file.lower().endswith(".pdf"):
+                print("Warning: No extractable text found in resume; attempting OCR.")
+                fd, ocr_pdf_path = tempfile.mkstemp(suffix=".pdf")
+                os.close(fd)
+                try:
+                    ocr(
+                        resume_file,
+                        ocr_pdf_path,
+                        language=["eng"],
+                        force_ocr=True,
+                        progress_bar=False,
+                    )
+                    with open(ocr_pdf_path, "rb") as f2:
+                        reader2 = PdfReader(f2)
+                        return "".join((p.extract_text() or "") for p in reader2.pages)
+                finally:
+                    try:
+                        if os.path.exists(ocr_pdf_path):
+                            os.remove(ocr_pdf_path)
+                    except OSError:
+                        pass
+
+            return extracted
         except Exception as e:
             print(f"Error: Unable to parse the resume provided: {e}")
             raise
