@@ -1,8 +1,7 @@
-import argparse
 import os
 import sys
 import tempfile
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -37,12 +36,12 @@ async def _save_upload_to_temp_pdf(upload: UploadFile) -> str:
 async def run_research_job(
     resume_file: UploadFile = File(...),
     job_posting: UploadFile = File(...),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if not _is_pdf(resume_file) or not _is_pdf(job_posting):
         raise HTTPException(status_code=400, detail="Both files must be PDFs.")
 
-    tmp_resume: Optional[str] = None
-    tmp_job_posting: Optional[str] = None
+    tmp_resume: str | None = None
+    tmp_job_posting: str | None = None
 
     try:
         tmp_resume = await _save_upload_to_temp_pdf(resume_file)

@@ -1,6 +1,15 @@
 import os
-
+import time
 from flow import build_job_research_flow
+
+
+def format_shared(shared: dict) -> dict:
+    return {
+        "company_name": shared['job_summary']['company_name'],
+        "job_title": shared['job_summary']['job_title'],
+        "job_description": shared['job_summary']['job_description'],
+        "brief": shared['brief'],
+    }
 
 
 def run_flow(resume_file: str, job_posting: str) -> dict:
@@ -23,9 +32,12 @@ def run_flow(resume_file: str, job_posting: str) -> dict:
     print(f"Job posting: {job_posting}")
 
     # Run the flow
+    time_start = time.time()
     flow = build_job_research_flow()
     flow.run(shared)
+    time_end = time.time()
 
-    print("\n=== Workflow Completed ===\n")
-    return shared
+    print("\n=== Workflow Completed ===")
+    print(f"Workflow completed in {time_end - time_start} seconds")
+    return format_shared(shared)
 
