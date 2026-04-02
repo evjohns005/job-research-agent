@@ -1,14 +1,16 @@
 # Job Research Agent
 
-A multi-agent system built with PocketFlow and Gemini API to analyze job descriptions and resumes to generate tailored insights and optimization strategies. It provides:
-
-- Resume <-> job match scoring
-- Skill gap detection
-- Overall fit summary
+A multi-agent job research tool that reads your resume and a job posting, scores your fit 1–10, identifies skill gaps, and generates a structured interview prep brief — powered by PocketFlow and Gemini 2.0 Flash.
 
 
 ## Architecture:
-`ParseJobNode -> ResearchNode -> SynthesisNode` </br>
+```mermaid
+graph TD;
+    A[Resume PDF + Job Posting PDF] --> B[ParseJobNode\nText extraction + OCR fallback];
+    B --> C[ResearchNode\n· Fit scoring 1-10\n · Skill gap analysis];
+    C --> D[SynthesisNode\n· Strengths\n · Talking points\n · Questions];
+    D --> E[Research Brief];
+```
 Shared store passes context between nodes.
 
 ## Why PocketFlow?
@@ -65,6 +67,7 @@ OCR is optional at runtime, but **required** for scanned/image-only PDFs.
 - **Tesseract OCR** (required): `tesseract.exe` must be installed and available on PATH
 - **Ghostscript** (usually required by OCRmyPDF): `gswin64c.exe` (64-bit) must be installed and available on PATH
 
+
 PowerShell checks:
 ```powershell
 where.exe tesseract
@@ -72,6 +75,11 @@ tesseract --version
 
 where.exe gswin64c
 gswin64c --version
+```
+
+For mac:
+```
+brew install tesseract ghostscript
 ```
 
 ## How to run
