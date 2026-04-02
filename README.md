@@ -17,7 +17,6 @@ Shared store passes context between nodes.
 Minimal 100-line frame work - no abstraction overhead, full visibility into agent execution flow.
 
 ## Interfaces
-- **CLI**: `python app.py <resume.pdf> <job_posting.pdf|job_posting.txt>`
 - **API**: FastAPI app with `POST /job-research` (multipart upload)
 
 ## OCR behavior (scanned PDFs)
@@ -83,12 +82,6 @@ brew install tesseract ghostscript
 ```
 
 ## How to run
-### CLI
-```bash
-poetry install
-poetry run python app.py path/to/resume.pdf path/to/job_posting.pdf
-```
-
 ### FastAPI
 ```bash
 poetry run uvicorn app:app --reload
@@ -96,8 +89,8 @@ poetry run uvicorn app:app --reload
 
 `POST /job-research` (multipart form):
 ```bash
-curl -X POST "http://127.0.0.1:8080/job-research" `
-  -F "resume_file=@path/to/resume.pdf;type=application/pdf" `
+curl -X POST "http://127.0.0.1:8080/job-research" \
+  -F "resume_file=@path/to/resume.pdf;type=application/pdf" \
   -F "job_posting=@path/to/job_posting.pdf;type=application/pdf"
 ```
 
