@@ -5,12 +5,16 @@ from google.genai.types import GenerateContentConfig, ThinkingConfig
 
 from config import GEMINI_API_KEY
 
-# Module level client instance
-_client = genai.Client(api_key=GEMINI_API_KEY or os.getenv("GEMINI_API_KEY"))
+_client: genai.Client | None = None
+
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=GEMINI_API_KEY or os.getenv("GEMINI_API_KEY"))
+    return _client
 
 def call_llm(prompt):
-    # Use the configured Gemini API key from our local config/environment.
-    response = _client.models.generate_content(
+    response = _get_client().models.generate_content(
         model="gemini-2.0-flash",
         contents=prompt,
         config=GenerateContentConfig(
